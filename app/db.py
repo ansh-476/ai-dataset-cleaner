@@ -48,9 +48,14 @@ class DatasetRow(Base):
 
 
 def _make_engine():
-    url = settings.database_url
-    if url.startswith("postgres://"):            # Heroku/Render style -> SQLAlchemy style
-        url = url.replace("postgres://", "postgresql://", 1)
+    url = settings.database_url.strip().strip('"').strip("'")
+    # Accept every spelling Neon / Render / Supabase hand out and force the psycopg2 driver we ship.
+    for prefix in ("postgres://", "postgresql://", "postgresql+psycopg://", "postgresql+psycopg2://", "postgresql+asyncpg://"):
+        if url.startswith(prefix):
+            url = "postgresql+psycopg2://" + url[len(prefix):]
+            break
+    if url.startswith("postgresql+psycopg2://"):
+        url = url.replace("&channel_binding=require", "").replace("?channel_binding=require&", "?").replace("?channel_binding=require", "")
     kwargs: dict[str, Any] = {"pool_pre_ping": True}
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
