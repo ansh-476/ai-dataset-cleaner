@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Dataset Cleaner</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B9%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-icon">🧹</span>
+    <div>
+      <div class="brand-title">AI Dataset Cleaner</div>
+      <div class="brand-sub">Analyze → Reason (AI) → Clean</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div id="ollamaPill" class="pill pill-muted" title="AI provider connection"><span class="dot"></span><span id="ollamaText">connecting…</span></div>
+    <button class="btn btn-ghost" id="btnSettings">⚙ Settings</button>
+  </div>
+</header>
+
+<nav class="stepper" id="stepper">
+  <button class="step active" data-step="1"><span class="num">1</span><span class="label">Upload</span></button>
+  <button class="step" data-step="2" disabled><span class="num">2</span><span class="label">Analysis</span></button>
+  <button class="step" data-step="3" disabled><span class="num">3</span><span class="label">AI plan</span></button>
+  <button class="step" data-step="4" disabled><span class="num">4</span><span class="label">Results</span></button>
+</nav>
+
+<main class="main">
+
+  <!-- ============ STEP 1: UPLOAD ============ -->
+  <section class="view" id="view1">
+    <div class="hero">
+      <h1>Upload a dataset to clean</h1>
+      <p>The profiler inspects every column for hidden problems, an AI model reasons about what it finds and proposes a cleaning plan, and you stay in control of what gets applied.</p>
+    </div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm,.json" hidden>
+      <div class="dz-icon">📄</div>
+      <div class="dz-title">Drag & drop your file here</div>
+      <div class="dz-sub">CSV · TSV · TXT · Excel (.xlsx/.xls) · JSON — or <button class="linklike" id="btnBrowse">browse</button></div>
+      <div class="dz-sample"><button class="btn btn-outline" id="btnSample">Try the bundled messy sample</button></div>
+    </div>
+    <div id="uploadStatus" class="status hidden"></div>
+
+    <div id="myDatasets" class="card hidden">
+      <div class="card-head"><h2>Your recent datasets</h2><span class="muted">kept for this browser only · auto-deleted after a few days</span></div>
+      <div id="myDatasetList" class="ds-list"></div>
+    </div>
+
+    <div id="datasetCard" class="card hidden">
+      <div class="card-head">
+        <div>
+          <h2 id="dsName">dataset.csv</h2>
+          <div class="muted" id="dsMeta"></div>
+        </div>
+        <div class="row gap">
+          <label id="sheetWrap" class="hidden">Sheet <select id="sheetSelect"></select></label>
+          <button class="btn btn-primary" id="btnAnalyze">Analyze dataset →</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="previewTable"></div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2: ANALYSIS ============ -->
+  <section class="view hidden" id="view2">
+    <div class="section-head">
+      <div>
+        <h1>Analysis <span class="pass-badge" id="passBadge"></span></h1>
+        <p class="muted">Everything the profiler found, with evidence. These findings are what the AI reasons over.</p>
+      </div>
+      <div class="row gap">
+        <button class="btn btn-outline" id="btnRulesPlan" title="Build a plan from the rule engine only (no AI)">Rule-based plan</button>
+        <button class="btn btn-primary" id="btnAiPlan">🧠 Ask AI to plan the cleaning →</button>
+      </div>
+    </div>
+
+    <div class="grid-stats" id="statTiles"></div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-head"><h2>Detected issues <span class="count" id="issueCount"></span></h2>
+          <div class="filters" id="sevFilters">
+            <button class="chip chip-high active" data-sev="high">High</button>
+            <button class="chip chip-medium active" data-sev="medium">Medium</button>
+            <button class="chip chip-low active" data-sev="low">Low</button>
+          </div>
+        </div>
+        <div id="issueList" class="issue-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Columns</h2><span class="muted" id="colCount"></span></div>
+        <div class="table-wrap"><table class="tbl" id="colTable"></table></div>
+        <div id="colDetail" class="col-detail hidden"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3: PLAN ============ -->
+  <section class="view hidden" id="view3">
+    <div class="section-head">
+      <div>
+        <h1>Cleaning plan</h1>
+        <p class="muted" id="planSub">The model reasons column by column and proposes actions from a fixed, safe toolbox.</p>
+      </div>
+      <div class="row gap">
+        <button class="btn btn-outline" id="btnRePlan">↻ Plan again</button>
+        <button class="btn btn-primary" id="btnApply" disabled>Apply selected actions →</button>
+      </div>
+    </div>
+
+    <div id="planProgress" class="card progress-card hidden">
+      <div class="progress-top">
+        <div class="spinner"></div>
+        <div>
+          <div class="progress-title" id="progressTitle">Starting…</div>
+          <div class="muted" id="progressSub"></div>
+        </div>
+        <div class="grow"></div>
+        <div class="muted" id="progressElapsed">0s</div>
+        <button class="btn btn-ghost" id="btnCancelPlan">Cancel</button>
+      </div>
+      <div class="bar"><div class="bar-fill" id="progressBar"></div></div>
+      <pre class="log" id="planLog"></pre>
+    </div>
+
+    <div id="planBody" class="hidden">
+      <div class="card ai-summary">
+        <div class="card-head"><h2>🧠 What the AI concluded</h2><span class="muted" id="planMeta"></span></div>
+        <p id="planSummary" class="summary-text"></p>
+        <details id="datasetThinkingWrap"><summary>Reasoning about the dataset structure</summary><p id="datasetThinking" class="thinking"></p></details>
+        <div id="planWarnings" class="warnings hidden"></div>
+      </div>
+
+      <div class="plan-toolbar">
+        <div class="row gap">
+          <button class="btn btn-ghost" id="btnSelectAll">Select all</button>
+          <button class="btn btn-ghost" id="btnSelectNone">Select none</button>
+          <button class="btn btn-ghost" id="btnDeselectRisky">Deselect row-deleting actions</button>
+        </div>
+        <div class="row gap">
+          <span class="muted" id="selectedCount"></span>
+          <button class="btn btn-outline" id="btnAddAction">+ Add action</button>
+        </div>
+      </div>
+      <div id="planGroups"></div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 4: RESULTS ============ -->
+  <section class="view hidden" id="view4">
+    <div class="section-head">
+      <div>
+        <h1>Results</h1>
+        <p class="muted">What changed, what is left, and your cleaned file.</p>
+      </div>
+      <div class="row gap wrap">
+        <button class="btn btn-outline" id="btnAnotherPass">↻ Run another pass on the cleaned data</button>
+        <button class="btn btn-ghost" id="btnReset">Reset to original</button>
+      </div>
+    </div>
+
+    <div class="grid-stats" id="resultTiles"></div>
+
+    <div class="card">
+      <div class="card-head"><h2>Downloads</h2></div>
+      <div class="row gap wrap">
+        <a class="btn btn-primary" id="dlCsv" download>⬇ Cleaned CSV</a>
+        <a class="btn btn-outline" id="dlXlsx" download>⬇ Cleaned Excel</a>
+        <a class="btn btn-outline" id="dlJson" download>⬇ Cleaned JSON</a>
+        <a class="btn btn-ghost" id="dlReport" download>📝 Cleaning report (.md)</a>
+        <a class="btn btn-ghost" id="dlReportJson" download>{ } Full report (.json)</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Change log</h2><span class="muted" id="logCount"></span></div>
+      <div class="table-wrap"><table class="tbl" id="logTable"></table></div>
+    </div>
+
+    <div class="two-col results">
+      <div class="card">
+        <div class="card-head"><h2>Remaining issues</h2><span class="muted" id="remainCount"></span></div>
+        <div id="remainList" class="issue-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Cleaned data preview</h2><span class="muted" id="cleanShape"></span></div>
+        <div class="table-wrap" id="cleanPreview"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="modal hidden" id="settingsModal">
+  <div class="modal-box">
+    <div class="card-head"><h2>Settings</h2><button class="btn btn-ghost" id="btnCloseSettings">✕</button></div>
+    <div id="hostedNote" class="status hidden">This server's AI provider is fixed by its administrator: <b id="hostedProvider"></b>. You can still change how the planning runs below.</div>
+    <div class="form-grid">
+      <label class="local-only">Provider<select id="setProvider"></select><small>groq / gemini / openrouter have free tiers · ollama runs locally</small></label>
+      <label class="local-only" id="keyRow">API key<input id="setKey" type="password" placeholder="paste API key"><small>Stored only in the server process memory. For permanent use put LLM_API_KEY in .env</small></label>
+      <label class="local-only">API base URL<input id="setUrl" type="text" placeholder="(provider default)"></label>
+      <label class="local-only">Model<div class="row gap"><select id="setModelSelect"></select><input id="setModel" type="text" placeholder="(provider default)"></div></label>
+      <label class="local-only">Temperature<input id="setTemp" type="number" step="0.05" min="0" max="1"></label>
+      <label class="local-only" id="ctxRow">Context window (num_ctx, Ollama)<input id="setCtx" type="number" step="1024" min="2048"></label>
+      <label class="local-only">Request timeout (s)<input id="setTimeout" type="number" min="30"></label>
+      <label>Columns per model call<input id="setCpc" type="number" min="1" max="10"><small>1 = deepest reasoning (one call per column); 3-5 = fewer calls, good for free API tiers</small></label>
+      <label class="check"><input id="setClean" type="checkbox"> Also ask about columns with no detected issues</label>
+      <label class="check"><input id="setSummary" type="checkbox"> Ask the model for a plan summary</label>
+      <label class="check local-only"><input id="setFallback" type="checkbox"> Fall back to rule-based plan if the AI is unreachable</label>
+    </div>
+    <div class="row gap end">
+      <button class="btn btn-ghost" id="btnTestOllama">Test connection</button>
+      <button class="btn btn-primary" id="btnSaveSettings">Save</button>
+    </div>
+    <div id="settingsStatus" class="muted"></div>
+  </div>
+</div>
+
+<!-- ============ ADD ACTION MODAL ============ -->
+<div class="modal hidden" id="addModal">
+  <div class="modal-box">
+    <div class="card-head"><h2>Add a manual action</h2><button class="btn btn-ghost" id="btnCloseAdd">✕</button></div>
+    <div class="form-grid">
+      <label>Action<select id="addAction"></select><small id="addActionDesc"></small></label>
+      <label>Column<select id="addColumn"></select></label>
+      <label>Parameters (JSON)<textarea id="addParams" rows="4">{}</textarea><small id="addParamsHelp"></small></label>
+      <label>Reason<input id="addReason" type="text" placeholder="Why this action?"></label>
+    </div>
+    <div class="row gap end"><button class="btn btn-primary" id="btnConfirmAdd">Add to plan</button></div>
+    <div id="addStatus" class="muted"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

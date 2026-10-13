@@ -1,0 +1,35 @@
+# Render "Blueprint": creates the backend web service from this repo.
+# In the Render dashboard: New + -> Blueprint -> pick this repo -> fill in the env vars marked sync: false.
+services:
+  - type: web
+    name: ai-dataset-cleaner-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: LLM_PROVIDER
+        value: groq
+      - key: LLM_MODEL
+        value: llama-3.3-70b-versatile
+      - key: LLM_API_KEY
+        sync: false           # paste your Groq key in the dashboard
+      - key: DATABASE_URL
+        sync: false           # paste the Neon connection string (postgresql://...)
+      - key: ALLOWED_ORIGINS
+        sync: false           # e.g. https://YOUR-USERNAME.github.io
+      - key: SERVE_FRONTEND
+        value: "true"         # the API also serves the UI at its own URL (handy for testing)
+      - key: ALLOW_CLIENT_SETTINGS
+        value: "false"
+      - key: COLUMNS_PER_CALL
+        value: "3"
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: MAX_ROWS
+        value: "100000"
+      - key: DATASET_TTL_DAYS
+        value: "7"
